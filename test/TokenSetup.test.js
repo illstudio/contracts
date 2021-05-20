@@ -17,15 +17,15 @@ contract("Tokens", (accounts) => {
   describe("Deployment", async () => {
     it("gives the owner the correct token balances", async () => {
       let linkBalance = await fakeLink.balanceOf(owner);
-      linkBalance = linkBalance.toNumber();
+      linkBalance = web3.utils.fromWei(linkBalance, 'ether')
       assert.equal(1000000, linkBalance, "Should have correct fLINK balance");
 
       let bancorBalance = await fakeBancor.balanceOf(owner);
-      bancorBalance = bancorBalance.toNumber();
+      bancorBalance = web3.utils.fromWei(bancorBalance, 'ether')
       assert.equal(10000, bancorBalance, "Should have correct fBNT balance");
 
       let maticBalance = await fakeMatic.balanceOf(owner);
-      maticBalance = maticBalance.toNumber();
+      maticBalance = web3.utils.fromWei(maticBalance, 'ether')
       assert.equal(1000000000, maticBalance, "Should have correct fLINK balance");
     })
   })
