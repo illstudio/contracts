@@ -1,6 +1,4 @@
-// const FakeLink = artifacts.require("FakeLink");
-// const FakeBancor = artifacts.require("FakeBancor");
-// const FakeMatic = artifacts.require("FakeMatic");
+const FakeLink = artifacts.require("Signer");
 
 // contract("Tokens", (accounts) => {
 //   let owner = accounts[0]
