@@ -7,14 +7,16 @@ contract CharacterGenerator {
   using ECDSA for bytes32;
 
   address public receiver;
-  address public creator;
+  address public owner;
 
-  event MessageReceived(bytes32 hash, bytes32 messageHash);
-  event Log(string message);
-
-  constructor(address _receiver) {
+  constructor(address _owner, address _receiver) {
     receiver = _receiver;
-    creator = msg.sender;
+    owner = _owner;
+  }
+
+  function test(address message, bytes memory signature) public pure returns (address) {
+    bytes32 hash = keccak256(abi.encodePacked(message));
+    return hash.toEthSignedMessageHash().recover(signature);
   }
 
   function generate(
@@ -23,22 +25,17 @@ contract CharacterGenerator {
     address taker,
     bytes memory signature
   ) public {
-    emit Log('here');
     bytes32 hash = keccak256(abi.encodePacked(taker));
-    bytes32 messageHash = hash.toEthSignedMessageHash();
-
-    emit MessageReceived(hash, messageHash);
-
-    address signer = messageHash.recover(signature);
-
-    require(signer == creator);
+    address signer = hash.toEthSignedMessageHash().recover(signature);
+    
+    require(signer == owner);
 
     // Only the specified taker can run this function
     require(taker == msg.sender);
     // Check approvals for all tokens before executing transfers
     for(uint i = 0; i < tokenAddresses.length; i++) {
       ERC20 token = ERC20(tokenAddresses[i]);
-      require(token.allowance(msg.sender, address(this)) >= tokenQuantities[i]);
+      require(token.allowance(msg.sender, address(this)) >= tokenQuantities[i], "Insufficent Allowance Provided");
     }
 
     // Transfer all tokens to self
