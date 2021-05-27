@@ -19,14 +19,19 @@ contract CharacterGenerator {
     address[] memory tokenAddresses, 
     uint256[] memory tokenQuantities, 
     address taker,
+    uint256 expiration,
     bytes memory signature
   ) public {
-    bytes32 hash = keccak256(abi.encodePacked(taker));
+    bytes32 hash = keccak256(abi.encodePacked(taker, expiration));
     address signer = hash.toEthSignedMessageHash().recover(signature);
     
-    require(signer == owner);
+    require(signer == owner, "Cannot Process Transaction Signed By Wrong Party");
+    
     // Only the specified taker can run this function
     require(taker == msg.sender, "Cannot Process Transaction Intended For Another Address");
+
+    // Cannot be expired
+    require(block.timestamp <= expiration, "Cannot Process Transaction After It Has Expired");
 
     // NOTE: Assumes we always sort tokens the same way when signing!
     bytes32 tokenComboHash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities));
