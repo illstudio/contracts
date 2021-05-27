@@ -8,15 +8,11 @@ contract CharacterGenerator {
 
   address public receiver;
   address public owner;
+  mapping(bytes32 => bool) public combinationUsed;
 
   constructor(address _owner, address _receiver) {
     receiver = _receiver;
     owner = _owner;
-  }
-
-  function test(address message, bytes memory signature) public pure returns (address) {
-    bytes32 hash = keccak256(abi.encodePacked(message));
-    return hash.toEthSignedMessageHash().recover(signature);
   }
 
   function generate(
@@ -29,9 +25,15 @@ contract CharacterGenerator {
     address signer = hash.toEthSignedMessageHash().recover(signature);
     
     require(signer == owner);
-
     // Only the specified taker can run this function
-    require(taker == msg.sender);
+    require(taker == msg.sender, "Cannot Process Transaction Intended For Another Address");
+
+    // NOTE: Assumes we always sort tokens the same way when signing!
+    bytes32 tokenComboHash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities));
+    require(!combinationUsed[tokenComboHash], "Token Combination Has Already Been Used");
+    combinationUsed[tokenComboHash] = true;
+
+
     // Check approvals for all tokens before executing transfers
     for(uint i = 0; i < tokenAddresses.length; i++) {
       ERC20 token = ERC20(tokenAddresses[i]);

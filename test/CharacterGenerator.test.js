@@ -110,7 +110,6 @@ contract("CharacterGenerator", (accounts) => {
       let message = web3.utils.soliditySha3(taker)
       let signature = await web3.eth.accounts.sign(message, private_key)
 
-      // truffleAssert.reverts(, "Insufficent Allowance Provide")
       await truffleAssert.reverts(characterGenerator.generate(
         tokenAddresses, 
         tokenQuantities,
@@ -120,56 +119,67 @@ contract("CharacterGenerator", (accounts) => {
       ), "Insufficent Allowance Provided")
     })
 
-    // it("Won't allow a transfer if the specified taker doesn't match the sender", async () => {
-    //   let tokenAddresses = [fakeLink.address]
-    //   let tokenQuantities = [web3.utils.toWei('100', 'ether')]
-    //   let taker = accounts[0] // specify the wrong taker
-
-    //   fakeLink.transfer(accounts[3], web3.utils.toWei('100', 'ether'), { from: accounts[0] })
-
-    //   let generatorAddress = characterGenerator.address
-
-    //   let data = web3.utils.soliditySha3(taker)
-
-    //   let signature = await web3.eth.sign(data, accounts[1])
+    it("Does not allow duplicate token sets", async () => {
+      let tokenAddresses = [fakeLink.address, fakeMatic.address]
+      let tokenQuantities = [web3.utils.toWei('4', 'ether'), web3.utils.toWei('12', 'ether')]
       
-    //   fakeLink.approve(generatorAddress, web3.utils.toWei('100', 'ether'), { from: accounts[3] })
+      let taker = accounts[2]
+      let message = web3.utils.soliditySha3(taker)
+      let signature = await web3.eth.accounts.sign(message, private_key)
 
-    //   truffleAssert.reverts(characterGenerator.generate(
-    //     tokenAddresses, 
-    //     tokenQuantities,
-    //     taker,
-    //     signature,
-    //     { from: accounts[3] }
-    //   ))
-    // })
+      // submit one successful transaction
+      await characterGenerator.generate(
+        tokenAddresses, 
+        tokenQuantities,
+        taker,
+        signature.signature,
+        { from: taker }
+      )
 
-    // it("Won't submit the transaction if the signed arguments don't resolve to the contract creator", async () => {
-    //   let tokenAddresses = [fakeMatic.address, fakeBancor]
-    //   let tokenQuantities = [web3.utils.toWei('100', 'ether'), web3.utils.toWei('10100', 'ether')]
+      await truffleAssert.reverts(characterGenerator.generate(
+        tokenAddresses, 
+        tokenQuantities,
+        taker,
+        signature.signature,
+        { from: taker }
+      ), "Token Combination Has Already Been Used")
+    })
 
-    //   let generatorAddress = characterGenerator.address
-
-    //   let taker = accounts[0]
+    it("Won't allow a transfer if the specified taker doesn't match the sender", async () => {
+      let tokenAddresses = [fakeLink.address, fakeMatic.address]
+      let tokenQuantities = [web3.utils.toWei('3', 'ether'), web3.utils.toWei('7', 'ether')]
       
-    //   fakeMatic.approve(generatorAddress, web3.utils.toWei('100', 'ether'), { from: accounts[0] })
-    //   fakeBancor.approve(generatorAddress, web3.utils.toWei('10100', 'ether'), { from: accounts[0] })
+      let taker = accounts[2]
+      let message = web3.utils.soliditySha3(taker)
+      let signature = await web3.eth.accounts.sign(message, private_key)
 
-    //   let data = web3.utils.soliditySha3(taker)
+      await truffleAssert.reverts(characterGenerator.generate(
+        tokenAddresses, 
+        tokenQuantities,
+        taker,
+        signature.signature,
+        { from: accounts[4] } // not the taker specified in the signed message
+      ), "Cannot Process Transaction Intended For Another Address")
+    })
 
-    //   let signature = await web3.eth.sign(data, accounts[1]) // sign with the wrong address
+    it("Won't submit the transaction if the signed arguments don't resolve to the contract creator", async () => {
+      let tokenAddresses = [fakeLink.address, fakeMatic.address]
+      let tokenQuantities = [web3.utils.toWei('3', 'ether'), web3.utils.toWei('7', 'ether')]
 
+      let different_key = '61f55951fe079994b32ed41d2c7e138faf5743da532a86d79da808f0b45138c8'
+      
+      let taker = accounts[2]
+      let message = web3.utils.soliditySha3(taker)
+      let signature = await web3.eth.accounts.sign(message, different_key)
 
-    //   // NOTE: Will need to sign like this in live app!
-    //   // web3.eth.accounts.sign(data, private_key)
-
-    //   truffleAssert.reverts(characterGenerator.generate(
-    //     tokenAddresses, 
-    //     tokenQuantities,
-    //     taker,
-    //     signature
-    //   ))
-    // })
+      await truffleAssert.reverts(characterGenerator.generate(
+        tokenAddresses, 
+        tokenQuantities,
+        taker,
+        signature.signature,
+        { from: taker } // not the taker specified in the signed message
+      ), "Cannot Process Transaction Signed By Wrong Party")
+    })
   })
 
 })
