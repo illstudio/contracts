@@ -2,9 +2,12 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "./Character.sol";
 
 contract CharacterGenerator {
   using ECDSA for bytes32;
+
+  Character public character;
 
   address public manager;
   address public owner;
@@ -30,6 +33,7 @@ contract CharacterGenerator {
     uint256[] memory tokenQuantities, 
     address taker,
     uint256 expiration,
+    string memory nftTokenURI,
     bytes memory signature
   ) public {
     // Make sure contract is active
@@ -38,7 +42,7 @@ contract CharacterGenerator {
     //Cannot create more than limit
     require(totalCreated < limit, "Limit Reached");
 
-    bytes32 hash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities, taker, expiration));
+    bytes32 hash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities, taker, expiration, nftTokenURI));
     address signer = hash.toEthSignedMessageHash().recover(signature);
     
     require(signer == owner, "Cannot Process Transaction Signed By Wrong Party");
@@ -69,6 +73,8 @@ contract CharacterGenerator {
       ERC20 token = ERC20(tokenAddresses[i]);
       token.transferFrom(msg.sender, address(this), tokenQuantities[i]);
     }
+
+    character.generate(taker, nftTokenURI);
   }
 
   function toggleActive(bool _active) public {
@@ -85,8 +91,13 @@ contract CharacterGenerator {
     }
   }
 
+  function setCharacter(address _character) public {
+    require(msg.sender == manager, "Function Can Only Be Called By Contract Manager");
+    character = Character(_character);
+  }
+
 }
 
 // TODO:
-// 4. Create NFT
 // 5. Increment totalCreated
+// 6. Add some salt

@@ -1,6 +1,7 @@
 const truffleAssert = require('truffle-assertions');
 
 const CharacterGenerator = artifacts.require("CharacterGenerator");
+const Character = artifacts.require("Character");
 const FakeLink = artifacts.require("FakeLink");
 const FakeBancor = artifacts.require("FakeBancor");
 const FakeMatic = artifacts.require("FakeMatic");
@@ -16,9 +17,15 @@ contract("CharacterGenerator", (accounts) => {
   let generatorAddress;
   let now;
   let secondsSinceEpoch;
+  let character;
+  let nftTokenURI = 'https://www.ill.studio/abcdefg' // fake URI
 
   before(async () => {
     characterGenerator = await CharacterGenerator.deployed()
+    character = await Character.deployed()
+    
+    await characterGenerator.setCharacter(character.address, { from: manager })
+
     generatorAddress = characterGenerator.address
     fakeLink = await FakeLink.deployed();
     fakeBancor = await FakeBancor.deployed();
@@ -94,7 +101,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
@@ -108,7 +116,8 @@ contract("CharacterGenerator", (accounts) => {
         tokenAddresses, 
         tokenQuantities, 
         taker,
-        expiration, 
+        expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker }
       )
@@ -123,6 +132,38 @@ contract("CharacterGenerator", (accounts) => {
       assert.equal(parseInt(newGeneratorMaticBalance), parseInt(initialGeneratorMaticBalance) + 5)
     })
 
+    it("Generates a character NFT", async () => {
+      let tokenAddresses = [fakeLink.address, fakeMatic.address]
+      let tokenQuantities = [web3.utils.toWei('5', 'ether'), web3.utils.toWei('1', 'ether')]
+      
+      let taker = accounts[2]
+      let expiration = secondsSinceEpoch + 300
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration,
+        nftTokenURI
+      )
+      let signature = await web3.eth.accounts.sign(message, private_key)
+
+      let originalBalance = parseInt(await character.balanceOf(taker))
+
+      await characterGenerator.generate(
+        tokenAddresses, 
+        tokenQuantities, 
+        taker,
+        expiration,
+        nftTokenURI,
+        signature.signature,
+        { from: taker }
+      )
+
+      let nftBalance = parseInt(await character.balanceOf(taker))
+
+      assert.equal(nftBalance, originalBalance + 1)
+    })
+
     it("Does not transfer unless ALL allowances are properly set", async () => {
       let tokenAddresses = [fakeLink.address, fakeMatic.address]
       let tokenQuantities = [web3.utils.toWei('2', 'ether'), web3.utils.toWei('4', 'ether')]
@@ -133,7 +174,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
@@ -142,6 +184,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker }
       ), "Insufficent Allowance Provided")
@@ -157,7 +200,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
@@ -167,6 +211,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker }
       )
@@ -176,6 +221,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker }
       ), "Token Combination Has Already Been Used")
@@ -191,7 +237,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
@@ -200,6 +247,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: accounts[4] } // not the taker specified in the signed message
       ), "Cannot Process Transaction Intended For Another Address")
@@ -217,7 +265,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, different_key)
 
@@ -226,6 +275,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker } // not the taker specified in the signed message
       ), "Cannot Process Transaction Signed By Wrong Party")
@@ -241,7 +291,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
@@ -250,6 +301,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker }
       ), "Cannot Process Transaction After It Has Expired")
@@ -267,7 +319,8 @@ contract("CharacterGenerator", (accounts) => {
         { type: 'address', value: tokenAddresses },
         { type: 'uint256', value: tokenQuantities },
         taker, 
-        expiration
+        expiration,
+        nftTokenURI
       )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
@@ -276,6 +329,7 @@ contract("CharacterGenerator", (accounts) => {
         tokenQuantities,
         taker,
         expiration,
+        nftTokenURI,
         signature.signature,
         { from: taker }
       ), "Cannot Process Transaction After When Contract is Off")
