@@ -6,7 +6,7 @@ const FakeBancor = artifacts.require("FakeBancor");
 const FakeMatic = artifacts.require("FakeMatic");
 
 contract("CharacterGenerator", (accounts) => {
-  let receiver = accounts[1];
+  let manager = accounts[9];
   let characterGenerator;
   let fakeLink;
   let fakeBancor;
@@ -67,9 +67,18 @@ contract("CharacterGenerator", (accounts) => {
   })
 
   describe("Deployment", async () => {
-    it("Sets the receiver to be accounts[1]", async () => {
-      let actualReceiver = await characterGenerator.receiver()
-      assert.equal(receiver, actualReceiver, "Receiver should be set to accounts[1]")
+    it("Sets the manager to be accounts[1]", async () => {
+      let actualManager = await characterGenerator.manager()
+      assert.equal(manager, actualManager, "Manager should be set to accounts[9]")
+    })
+  })
+
+  describe("#toggleOff()", async () => {
+    it("Can only be called by the manager", async () => {
+      await truffleAssert.reverts(
+        characterGenerator.toggleActive(true, { from: accounts[1] }),
+        "Function Can Only Be Called By Contract Manager"
+      )
     })
   })
 
@@ -81,7 +90,12 @@ contract("CharacterGenerator", (accounts) => {
       
       let taker = accounts[2]
       let expiration = secondsSinceEpoch + 300
-      let message = web3.utils.soliditySha3(taker, expiration)
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
       let initialGeneratorLinkBalance = await fakeLink.balanceOf(generatorAddress)
@@ -115,7 +129,12 @@ contract("CharacterGenerator", (accounts) => {
       
       let taker = accounts[5] // no allowances set!
       let expiration = secondsSinceEpoch + 300
-      let message = web3.utils.soliditySha3(taker, expiration)
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
       await truffleAssert.reverts(characterGenerator.generate(
@@ -134,7 +153,12 @@ contract("CharacterGenerator", (accounts) => {
       
       let taker = accounts[2]
       let expiration = secondsSinceEpoch + 300
-      let message = web3.utils.soliditySha3(taker, expiration)
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
       // submit one successful transaction
@@ -163,7 +187,12 @@ contract("CharacterGenerator", (accounts) => {
       
       let taker = accounts[2]
       let expiration = secondsSinceEpoch + 300
-      let message = web3.utils.soliditySha3(taker, expiration)
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
       await truffleAssert.reverts(characterGenerator.generate(
@@ -184,7 +213,12 @@ contract("CharacterGenerator", (accounts) => {
       
       let taker = accounts[2]
       let expiration = secondsSinceEpoch + 300
-      let message = web3.utils.soliditySha3(taker, expiration)
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
       let signature = await web3.eth.accounts.sign(message, different_key)
 
       await truffleAssert.reverts(characterGenerator.generate(
@@ -203,7 +237,12 @@ contract("CharacterGenerator", (accounts) => {
       
       let taker = accounts[2]
       let expiration = secondsSinceEpoch - 30 // set expiration in the past
-      let message = web3.utils.soliditySha3(taker, expiration)
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
       let signature = await web3.eth.accounts.sign(message, private_key)
 
       await truffleAssert.reverts(characterGenerator.generate(
@@ -212,8 +251,36 @@ contract("CharacterGenerator", (accounts) => {
         taker,
         expiration,
         signature.signature,
-        { from: taker } // not the taker specified in the signed message
+        { from: taker }
       ), "Cannot Process Transaction After It Has Expired")
+    })
+
+    it("Won't submit the transaction if the contract is off", async () => {
+      await characterGenerator.toggleActive(false, { from: accounts[9] })
+
+      let tokenAddresses = [fakeLink.address, fakeMatic.address]
+      let tokenQuantities = [web3.utils.toWei('6', 'ether'), web3.utils.toWei('2', 'ether')]
+      
+      let taker = accounts[2]
+      let expiration = secondsSinceEpoch + 300
+      let message = web3.utils.soliditySha3(
+        { type: 'address', value: tokenAddresses },
+        { type: 'uint256', value: tokenQuantities },
+        taker, 
+        expiration
+      )
+      let signature = await web3.eth.accounts.sign(message, private_key)
+
+      await truffleAssert.reverts(characterGenerator.generate(
+        tokenAddresses, 
+        tokenQuantities,
+        taker,
+        expiration,
+        signature.signature,
+        { from: taker }
+      ), "Cannot Process Transaction After When Contract is Off")
+
+      await characterGenerator.toggleActive(true, { from: accounts[9] })
     })
   })
 

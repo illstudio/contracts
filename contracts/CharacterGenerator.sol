@@ -6,13 +6,15 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract CharacterGenerator {
   using ECDSA for bytes32;
 
-  address public receiver;
+  address public manager;
   address public owner;
+  bool public active;
   mapping(bytes32 => bool) public combinationUsed;
 
-  constructor(address _owner, address _receiver) {
-    receiver = _receiver;
+  constructor(address _owner, address _manager) {
+    manager = _manager;
     owner = _owner;
+    active = true;
   }
 
   function generate(
@@ -22,7 +24,10 @@ contract CharacterGenerator {
     uint256 expiration,
     bytes memory signature
   ) public {
-    bytes32 hash = keccak256(abi.encodePacked(taker, expiration));
+    // Make sure contract is active
+    require(active, "Cannot Process Transaction After When Contract is Off");
+
+    bytes32 hash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities, taker, expiration));
     address signer = hash.toEthSignedMessageHash().recover(signature);
     
     require(signer == owner, "Cannot Process Transaction Signed By Wrong Party");
@@ -38,7 +43,6 @@ contract CharacterGenerator {
     require(!combinationUsed[tokenComboHash], "Token Combination Has Already Been Used");
     combinationUsed[tokenComboHash] = true;
 
-
     // Check approvals for all tokens before executing transfers
     for(uint i = 0; i < tokenAddresses.length; i++) {
       ERC20 token = ERC20(tokenAddresses[i]);
@@ -52,4 +56,15 @@ contract CharacterGenerator {
     }
   }
 
+  function toggleActive(bool _active) public {
+    require(msg.sender == manager, "Function Can Only Be Called By Contract Manager");
+    active = _active;
+  }
+
 }
+
+// TODO:
+// 1. Add functionality for turning contract on and off
+// 2. Add functionality for setting limit
+// 3. Add withdrawl function
+// 4. Create NFT
