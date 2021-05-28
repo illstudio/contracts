@@ -284,4 +284,44 @@ contract("CharacterGenerator", (accounts) => {
     })
   })
 
+  describe("#withdraw()", async () => {
+    it("withrdaws the balance of each token", async () => {
+      let generatorLinkBalance = await fakeLink.balanceOf(generatorAddress)
+      generatorLinkBalance = web3.utils.fromWei(generatorLinkBalance, 'ether')
+
+      let generatorMaticBalance = await fakeMatic.balanceOf(generatorAddress)
+      generatorMaticBalance = web3.utils.fromWei(generatorMaticBalance, 'ether')
+
+      let generatorBancorBalance = await fakeBancor.balanceOf(generatorAddress)
+      generatorBancorBalance = web3.utils.fromWei(generatorBancorBalance, 'ether')
+
+      await characterGenerator.withdraw({ from: manager })
+
+      let managerLinkBalance = await fakeLink.balanceOf(manager)
+      managerLinkBalance = web3.utils.fromWei(managerLinkBalance, 'ether')
+
+      let managerMaticBalance = await fakeMatic.balanceOf(manager)
+      managerMaticBalance = web3.utils.fromWei(managerMaticBalance, 'ether')
+
+      let managerBancorBalance = await fakeBancor.balanceOf(manager)
+      managerBancorBalance = web3.utils.fromWei(managerBancorBalance, 'ether')
+
+      assert.equal(managerLinkBalance, generatorLinkBalance)
+      assert.equal(managerMaticBalance, generatorMaticBalance)
+      assert.equal(managerBancorBalance, generatorBancorBalance)
+
+      let finalGeneratorLinkBalance = await fakeLink.balanceOf(generatorAddress)
+      let finalGeneratorMaticBalance = await fakeMatic.balanceOf(generatorAddress)
+      let finalGeneratorBancorBalance = await fakeBancor.balanceOf(generatorAddress)
+
+      assert.equal(finalGeneratorLinkBalance, 0)
+      assert.equal(finalGeneratorMaticBalance, 0)
+      assert.equal(finalGeneratorBancorBalance, 0)
+    })
+
+    it("can't be called by anyone except the manager", async () => {
+      await truffleAssert.reverts(characterGenerator.withdraw({ from: accounts[3] }), "Function Can Only Be Called By Contract Manager")
+    })
+  })
+
 })

@@ -8,12 +8,20 @@ contract CharacterGenerator {
 
   address public manager;
   address public owner;
+  uint16 public limit;
+  uint16 public totalCreated;
   bool public active;
-  mapping(bytes32 => bool) public combinationUsed;
 
-  constructor(address _owner, address _manager) {
+  address[] tokenList;
+
+  mapping(bytes32 => bool) public combinationUsed;
+  mapping(address => bool) public tokenUsed;
+
+  constructor(address _owner, address _manager, uint16 _limit) {
     manager = _manager;
     owner = _owner;
+    limit = _limit;
+    totalCreated = 0;
     active = true;
   }
 
@@ -26,6 +34,9 @@ contract CharacterGenerator {
   ) public {
     // Make sure contract is active
     require(active, "Cannot Process Transaction After When Contract is Off");
+    
+    //Cannot create more than limit
+    require(totalCreated < limit, "Limit Reached");
 
     bytes32 hash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities, taker, expiration));
     address signer = hash.toEthSignedMessageHash().recover(signature);
@@ -51,6 +62,10 @@ contract CharacterGenerator {
 
     // Transfer all tokens to self
     for(uint i = 0; i < tokenAddresses.length; i++) {
+      if (!tokenUsed[tokenAddresses[i]]) {
+        tokenList.push(tokenAddresses[i]);
+        tokenUsed[tokenAddresses[i]] = true;
+      }
       ERC20 token = ERC20(tokenAddresses[i]);
       token.transferFrom(msg.sender, address(this), tokenQuantities[i]);
     }
@@ -61,10 +76,17 @@ contract CharacterGenerator {
     active = _active;
   }
 
+  function withdraw() public {
+    require(msg.sender == manager, "Function Can Only Be Called By Contract Manager");
+    for (uint i = 0; i < tokenList.length; i++) {
+      ERC20 token = ERC20(tokenList[i]);
+      uint256 balance = token.balanceOf(address(this));
+      token.transfer(msg.sender, balance);
+    }
+  }
+
 }
 
 // TODO:
-// 1. Add functionality for turning contract on and off
-// 2. Add functionality for setting limit
-// 3. Add withdrawl function
 // 4. Create NFT
+// 5. Increment totalCreated
