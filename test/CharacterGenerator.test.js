@@ -26,6 +26,7 @@ contract("CharacterGenerator", (accounts) => {
     character = await Character.deployed()
     
     await characterGenerator.setCharacter(character.address, { from: manager })
+    await character.setGenerator(characterGenerator.address, { from: manager })
 
     generatorAddress = characterGenerator.address
     fakeLink = await FakeLink.deployed();

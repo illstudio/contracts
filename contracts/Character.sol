@@ -8,9 +8,15 @@ contract Character is ERC721URIStorage {
   using Counters for Counters.Counter;
   Counters.Counter private _tokenIds;
 
-  constructor() ERC721("Ill Intentions Character", "ILLC") {}
+  address public owner;
+  address public generator;
+
+  constructor(address _owner) ERC721("Ill Intentions Character", "ILLC") {
+    owner = _owner;
+  }
 
   function generate(address taker, string memory tokenURI) public returns (uint256) {
+    require(msg.sender == generator);
     _tokenIds.increment();
 
     uint256 newCharacterId = _tokenIds.current();
@@ -18,6 +24,11 @@ contract Character is ERC721URIStorage {
     _setTokenURI(newCharacterId, tokenURI);
 
     return newCharacterId;
+  }
+
+  function setGenerator(address _generator) public {
+    require(msg.sender == owner);
+    generator = _generator;
   }
 
 }
