@@ -19,6 +19,7 @@ contract CharacterGenerator {
 
   mapping(bytes32 => bool) public combinationUsed;
   mapping(address => bool) public tokenUsed;
+  mapping(string => bool) public saltUsed;
 
   constructor(address _owner, address _manager, uint16 _limit) {
     manager = _manager;
@@ -34,6 +35,7 @@ contract CharacterGenerator {
     address taker,
     uint256 expiration,
     string memory nftTokenURI,
+    string memory salt,
     bytes memory signature
   ) public {
     // Make sure contract is active
@@ -42,7 +44,7 @@ contract CharacterGenerator {
     //Cannot create more than limit
     require(totalCreated < limit, "Limit Reached");
 
-    bytes32 hash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities, taker, expiration, nftTokenURI));
+    bytes32 hash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities, taker, expiration, nftTokenURI, salt));
     address signer = hash.toEthSignedMessageHash().recover(signature);
     
     require(signer == owner, "Cannot Process Transaction Signed By Wrong Party");
@@ -57,6 +59,9 @@ contract CharacterGenerator {
     bytes32 tokenComboHash = keccak256(abi.encodePacked(tokenAddresses, tokenQuantities));
     require(!combinationUsed[tokenComboHash], "Token Combination Has Already Been Used");
     combinationUsed[tokenComboHash] = true;
+
+    require(!saltUsed[salt], "Cannot Use Same Salt More Than Once");
+    saltUsed[salt] = true;
 
     // Check approvals for all tokens before executing transfers
     for(uint i = 0; i < tokenAddresses.length; i++) {
@@ -99,5 +104,4 @@ contract CharacterGenerator {
 }
 
 // TODO:
-// 5. Increment totalCreated
 // 6. Add some salt
